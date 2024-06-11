@@ -43,8 +43,74 @@ from utilsAuth import getToken
 from utilsAPI import getAPIURL
 
 
+def convertVideosToOpecap(session_id, trial_id, isDocker=True,
+                             isCalibration=False, isStaticPose=False,
+                             trial_name=None, session_name=None,
+                             session_path=None, benchmark=False):
+    if session_name is None:
+        session_name = session_id
+    data_dir = getDataDirectory(isDocker)
+    if session_path is None:
+        session_path = os.path.join(data_dir, 'Data', session_name)
+    if not os.path.exists(session_path):
+        os.makedirs(session_path, exist_ok=True)
 
-def processLocalTrial(session_id, trial_id, trial_type='dynamic',
+    trial = getTrialJson(trial_id)
+
+    if trial_name is None:
+        trial_name = trial['name']
+    trial_name = trial_name.replace(' ', '')
+
+    print("\nProcessing {}".format(trial_name))
+
+    # The videos are not always organized in the same order. Here, we save
+    # the order during the first trial processed in the session such that we
+    # can use the same order for the other trials.
+    if not benchmark:
+        if not os.path.exists(os.path.join(session_path, "Videos", 'mappingCamDevice.pickle')):
+            mappingCamDevice = {}
+            for k, video in enumerate(trial["videos"]):
+                os.makedirs(os.path.join(session_path, "Videos", "Cam{}".format(k), "InputMedia", trial_name),
+                            exist_ok=True)
+                video_path = os.path.join(session_path, "Videos", "Cam{}".format(k), "InputMedia", trial_name,
+                                          trial_id + ".mov")
+                download_file(video["video"], video_path)
+                mappingCamDevice[video["device_id"].replace('-', '').upper()] = k
+            with open(os.path.join(session_path, "Videos", 'mappingCamDevice.pickle'), 'wb') as handle:
+                pickle.dump(mappingCamDevice, handle)
+        else:
+            with open(os.path.join(session_path, "Videos", 'mappingCamDevice.pickle'), 'rb') as handle:
+                mappingCamDevice = pickle.load(handle)
+            for video in trial["videos"]:
+                k = mappingCamDevice[video["device_id"].replace('-', '').upper()]
+                videoDir = os.path.join(session_path, "Videos", "Cam{}".format(k), "InputMedia", trial_name)
+                os.makedirs(videoDir, exist_ok=True)
+                video_path = os.path.join(videoDir, trial_id + ".mov")
+                if not os.path.exists(video_path):
+                    if video['video']:
+                        download_file(video["video"], video_path)
+
+        # Import and save metadata
+        sessionYamlPath = os.path.join(session_path, "sessionMetadata.yaml")
+        if not os.path.exists(sessionYamlPath) or isStaticPose or isCalibration:
+            if isCalibration:  # subject parameters won't be entered yet
+                session_desc = getMetadataFromServer(session_id, justCheckerParams=isCalibration)
+            else:  # subject parameters will be entered when capturing static pose
+                session_desc = getMetadataFromServer(session_id)
+
+            # Load iPhone models. @todo support FLIR
+            phoneModel = []
+            for i, video in enumerate(trial["videos"]):
+                phoneModel.append(video['parameters']['model'])
+            session_desc['iphoneModel'] = {'Cam' + str(i): phoneModel[i] for i in range(len(phoneModel))}
+
+            # Save metadata.
+            with open(sessionYamlPath, 'w') as file:
+                yaml.dump(session_desc, file)
+
+    return trial_name
+
+def processLocalTrial(session_path, session_id, trial_id, trial_type='dynamic',
                  imageUpsampleFactor=4, poseDetector='OpenPose',
                  isDocker=True, resolutionPoseDetection='default',
                  bbox_thr=0.8, extrinsicTrialName='calibration',
@@ -54,9 +120,6 @@ def processLocalTrial(session_id, trial_id, trial_type='dynamic',
                  batchProcess=False):
     # Get session directory
     session_name = session_id
-    data_dir = getDataDirectory(isDocker=isDocker)
-    session_path = os.path.join(data_dir, 'Data', session_name)
-    trial_url = "{}{}{}/".format(API_URL, "trials/", trial_id)
     metadata_path = os.path.join(session_path, 'sessionMetadata.yaml')
 
     # Process the 3 different types of trials
@@ -65,7 +128,7 @@ def processLocalTrial(session_id, trial_id, trial_type='dynamic',
         deleteCalibrationFiles(session_path)
 
         # download the videos
-        trial_name = downloadVideosFromServer(session_id, trial_id, isDocker=isDocker,
+        trial_name = convertVideosToOpecap(session_id, trial_id, isDocker=isDocker,
                                               isCalibration=True, isStaticPose=False)
 
         # run calibration
@@ -298,7 +361,7 @@ if os.path.isdir(session_path):
     session_id = os.path.basename(session_path)
 
     try:
-        processLocalTrial(trial["session"], trial["id"], trial_type=trial_type, isDocker=isDocker)
+        processLocalTrial(session_path, session_id, trial["id"], trial_type=trial_type, isDocker=isDocker)
 
     except Exception as e:
         traceback.print_exc()
