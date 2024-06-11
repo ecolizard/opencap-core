@@ -139,16 +139,12 @@ def processLocalTrial(session_path, session_id, trial_id, trial_type='dynamic',
             error_msg = {}
             error_msg['error_msg'] = e.args[0]
             error_msg['error_msg_dev'] = e.args[1]
-            _ = requests.patch(trial_url, data={"meta": json.dumps(error_msg)},
-                               headers={"Authorization": "Token {}".format(API_TOKEN)})
             raise Exception('Calibration failed', e.args[0], e.args[1])
-
-        if not hasWritePermissions:
-            print('You are not the owner of this session, so do not have permission to write results to database.')
-            return
 
         # Write calibration images to django
         images_path = os.path.join(session_path, 'CalibrationImages')
+
+        # write locally to session path
         writeMediaToAPI(API_URL, images_path, trial_id, tag="calibration-img", deleteOldMedia=True)
 
         # Write calibration solutions to django
@@ -214,13 +210,7 @@ def processLocalTrial(session_path, session_id, trial_id, trial_type='dynamic',
             error_msg = {}
             error_msg['error_msg'] = e.args[0]
             error_msg['error_msg_dev'] = e.args[1]
-            _ = requests.patch(trial_url, data={"meta": json.dumps(error_msg)},
-                               headers={"Authorization": "Token {}".format(API_TOKEN)})
             raise Exception('Static trial failed', e.args[0], e.args[1])
-
-        if not hasWritePermissions:
-            print('You are not the owner of this session, so do not have permission to write results to database.')
-            return
 
         # Write videos to django
         video_path = getResultsPath(session_id, trial_id,
@@ -303,13 +293,7 @@ def processLocalTrial(session_path, session_id, trial_id, trial_type='dynamic',
             error_msg = {}
             error_msg['error_msg'] = e.args[0]
             error_msg['error_msg_dev'] = e.args[1]
-            _ = requests.patch(trial_url, data={"meta": json.dumps(error_msg)},
-                               headers={"Authorization": "Token {}".format(API_TOKEN)})
             raise Exception('Dynamic trial failed.\n' + error_msg['error_msg_dev'], e.args[0], e.args[1])
-
-        if not hasWritePermissions:
-            print('You are not the owner of this session, so do not have permission to write results to database.')
-            return
 
         # Write videos to django
         video_path = getResultsPath(session_id, trial_id,
