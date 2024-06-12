@@ -44,71 +44,83 @@ from utils import getTrialNameIdMapping
 from utilsAuth import getToken
 from utilsAPI import getAPIURL
 
+import pickle
+
 # Note: This is modified from downloadVideosFromServer() in utils.py and will need to be updated if the original is updated.
-def convertVideosToOpencap(session_id, trial_id, isDocker=True,
+def convertVideosToOpencap(session_path, session_id, trial_id, isDocker=False,
                           isCalibration=False, isStaticPose=False,
-                          trial_name=None, session_name=None,
-                          session_path=None, benchmark=False):
+                          trial_name='calibration', session_name=None
+                           ):
     if session_name is None:
         session_name = session_id
-    data_dir = getDataDirectory(isDocker)
-    if session_path is None:
-        session_path = os.path.join(data_dir, 'Data', session_name)
-    if not os.path.exists(session_path):
-        os.makedirs(session_path, exist_ok=True)
 
-    trial = getTrialJson(trial_id)
-
-    if trial_name is None:
-        trial_name = trial['name']
     trial_name = trial_name.replace(' ', '')
+
+    trial = []
+
+    # foreach .mpg file in the session path
+    for video_path in glob.glob(os.path.join(session_path, '*.avi')):
+        video_name = os.path.basename(video_path)
+        video_name = video_name.replace(' ', '')
+        video_name = video_name.replace('.avi', '')
+
+        # create a video object
+        video = {
+            "video": video_path,
+            "device_id": video_name,
+            "parameters": {
+                "model": "FLIR Blackfly S USB3"
+            }
+        }
+        trial.append(video)
 
     print("\nProcessing {}".format(trial_name))
 
     # The videos are not always organized in the same order. Here, we save
     # the order during the first trial processed in the session such that we
     # can use the same order for the other trials.
-    if not benchmark:
-        if not os.path.exists(os.path.join(session_path, "Videos", 'mappingCamDevice.pickle')):
-            mappingCamDevice = {}
-            for k, video in enumerate(trial["videos"]):
-                os.makedirs(os.path.join(session_path, "Videos", "Cam{}".format(k), "InputMedia", trial_name),
-                            exist_ok=True)
-                video_path = os.path.join(session_path, "Videos", "Cam{}".format(k), "InputMedia", trial_name,
-                                          trial_id + ".mov")
-                download_file(video["video"], video_path)
-                mappingCamDevice[video["device_id"].replace('-', '').upper()] = k
-            with open(os.path.join(session_path, "Videos", 'mappingCamDevice.pickle'), 'wb') as handle:
-                pickle.dump(mappingCamDevice, handle)
-        else:
-            with open(os.path.join(session_path, "Videos", 'mappingCamDevice.pickle'), 'rb') as handle:
-                mappingCamDevice = pickle.load(handle)
-            for video in trial["videos"]:
-                k = mappingCamDevice[video["device_id"].replace('-', '').upper()]
-                videoDir = os.path.join(session_path, "Videos", "Cam{}".format(k), "InputMedia", trial_name)
-                os.makedirs(videoDir, exist_ok=True)
-                video_path = os.path.join(videoDir, trial_id + ".mov")
-                if not os.path.exists(video_path):
-                    if video['video']:
-                        download_file(video["video"], video_path)
+    if not os.path.exists(os.path.join(session_path, "Videos", 'mappingCamDevice.pickle')):
+        mappingCamDevice = {}
+        for k, video in enumerate(trial["videos"]):
+            os.makedirs(os.path.join(session_path, "Videos", "Cam{}".format(k), "InputMedia", trial_name),
+                        exist_ok=True)
+            video_path = os.path.join(session_path, "Videos", "Cam{}".format(k), "InputMedia", trial_name,
+                                      trial_id + ".mov")
 
-        # Import and save metadata
-        sessionYamlPath = os.path.join(session_path, "sessionMetadata.yaml")
-        if not os.path.exists(sessionYamlPath) or isStaticPose or isCalibration:
-            if isCalibration:  # subject parameters won't be entered yet
-                session_desc = getMetadataFromServer(session_id, justCheckerParams=isCalibration)
-            else:  # subject parameters will be entered when capturing static pose
-                session_desc = getMetadataFromServer(session_id)
+            shutil.move(video["video"], video_path)
 
-            # Load iPhone models. @todo support FLIR
-            phoneModel = []
-            for i, video in enumerate(trial["videos"]):
-                phoneModel.append(video['parameters']['model'])
-            session_desc['iphoneModel'] = {'Cam' + str(i): phoneModel[i] for i in range(len(phoneModel))}
+            mappingCamDevice[video["device_id"].replace('-', '').upper()] = k
+        with open(os.path.join(session_path, "Videos", 'mappingCamDevice.pickle'), 'wb') as handle:
+            pickle.dump(mappingCamDevice, handle)
+    else:
+        with open(os.path.join(session_path, "Videos", 'mappingCamDevice.pickle'), 'rb') as handle:
+            mappingCamDevice = pickle.load(handle)
+        for video in trial["videos"]:
+            k = mappingCamDevice[video["device_id"].replace('-', '').upper()]
+            videoDir = os.path.join(session_path, "Videos", "Cam{}".format(k), "InputMedia", trial_name)
+            os.makedirs(videoDir, exist_ok=True)
+            video_path = os.path.join(videoDir, trial_id + ".mov")
+            if not os.path.exists(video_path):
+                if video['video']:
+                    shutil.move(video["video"], video_path)
 
-            # Save metadata.
-            with open(sessionYamlPath, 'w') as file:
-                yaml.dump(session_desc, file)
+    # Import and save metadata
+    sessionYamlPath = os.path.join(session_path, "sessionMetadata.yaml")
+    if not os.path.exists(sessionYamlPath) or isStaticPose or isCalibration:
+        if isCalibration:  # subject parameters won't be entered yet
+            session_desc = getMetadataFromServer(session_id, justCheckerParams=isCalibration)
+        else:  # subject parameters will be entered when capturing static pose
+            session_desc = getMetadataFromServer(session_id)
+
+        # Load iPhone models. @todo support FLIR
+        phoneModel = []
+        for i, video in enumerate(trial["videos"]):
+            phoneModel.append(video['parameters']['model'])
+        session_desc['iphoneModel'] = {'Cam' + str(i): phoneModel[i] for i in range(len(phoneModel))}
+
+        # Save metadata.
+        with open(sessionYamlPath, 'w') as file:
+            yaml.dump(session_desc, file)
 
     return trial_name
 
@@ -132,9 +144,8 @@ def processLocalTrial(session_path, session_id, trial_id, trial_type='dynamic',
         deleteCalibrationFiles(session_path)
 
         # download the videos
-        trial_name = convertVideosToOpencap(session_id, trial_id, isDocker=isDocker,
-                                           isCalibration=True, isStaticPose=False)
-
+        trial_name = convertVideosToOpencap(session_path, session_id, trial_id, isDocker=isDocker,
+                                           isCalibration=True, isStaticPose=False, trial_name='calibration')
         # run calibration
         try:
             main(session_name, trial_name, trial_id, isDocker=isDocker, extrinsicsTrial=True,
@@ -163,8 +174,8 @@ def processLocalTrial(session_path, session_id, trial_id, trial_type='dynamic',
         calibrationOptions = getCalibration(session_id, session_path, trial_type=trial_type, getCalibrationOptions=True)
 
         # download the videos
-        trial_name = convertVideosToOpencap(session_id, trial_id, isDocker=isDocker,
-                                              isCalibration=False, isStaticPose=True)
+        trial_name = convertVideosToOpencap(session_path, session_id, trial_id, isDocker=isDocker,
+                                              isCalibration=False, isStaticPose=True, trial_name='neutral')
 
         # Download the pose pickles to avoid re-running pose estimation.
         if batchProcess and use_existing_pose_pickle:
@@ -369,3 +380,78 @@ if os.path.isdir(session_path):
             logging.info("Opencap failed.")
             message = "A backend OpenCap machine timed out during pose detection. It has been stopped."
             raise Exception('processLocalTrial() failed.')
+
+
+
+''' Opencap
+    session = {
+    "id": "6038ba9c-6d9d-4668-b215-6360001b92ce",
+    "user": 3344,
+    "public": false,
+    "name": "6038ba9c",
+    "qrcode": "https://mc-mocap-video-storage.s3.amazonaws.com/6038ba9c-6d9d-4668-b215-6360001b92ce.png?AWSAccessKeyId=AKIAZTRKQGHOES33JEGA&Signature=JdL80H%2FD39r3TL8gu3vLAnjNYZE%3D&Expires=1702995289",
+    "meta": {
+        "checkerboard": {
+            "cols": "5",
+            "rows": "4",
+            "placement": "backWall",
+            "square_size": "35"
+        }
+    },
+    "trials": [
+        {
+            "id": "1e822abe-2851-4dfd-9027-26de32e47ec7",
+            "session": "6038ba9c-6d9d-4668-b215-6360001b92ce",
+            "name": "calibration",
+            "status": "error",
+            "videos": [],
+            "results": [],
+            "meta": {
+                "error_msg": "No videos uploaded. Ensure phones are connected and you have stable internet connection.",
+                "error_msg_dev": "No videos uploaded."
+            },
+            "created_at": "2023-12-19T10:56:58.296851Z",
+            "updated_at": "2023-12-19T10:57:00.764437Z",
+            "trashed": false,
+            "trashed_at": null
+        },
+        {
+            "id": "d77b8195-0f4b-4a65-9b4a-8c438d68282b",
+            "session": "6038ba9c-6d9d-4668-b215-6360001b92ce",
+            "name": "calibration",
+            "status": "error",
+            "videos": [],
+            "results": [],
+            "meta": {
+                "error_msg": "No videos uploaded. Ensure phones are connected and you have stable internet connection.",
+                "error_msg_dev": "No videos uploaded."
+            },
+            "created_at": "2023-12-19T10:57:06.089001Z",
+            "updated_at": "2023-12-19T10:57:08.988775Z",
+            "trashed": false,
+            "trashed_at": null
+        },
+        {
+            "id": "c0242b3e-681a-4032-83e9-e1f06fd539ae",
+            "session": "6038ba9c-6d9d-4668-b215-6360001b92ce",
+            "name": "calibration",
+            "status": "error",
+            "videos": [],
+            "results": [],
+            "meta": {
+                "error_msg": "No videos uploaded. Ensure phones are connected and you have stable internet connection.",
+                "error_msg_dev": "No videos uploaded."
+            },
+            "created_at": "2023-12-19T10:57:13.802275Z",
+            "updated_at": "2023-12-19T10:57:16.268406Z",
+            "trashed": false,
+            "trashed_at": null
+        }
+    ],
+    "server": "171.65.92.179",
+    "subject": null,
+    "created_at": "2023-12-19T10:48:51.077407Z",
+    "updated_at": "2023-12-19T10:57:13.469787Z",
+    "trashed": false,
+    "trashed_at": null
+}'''
