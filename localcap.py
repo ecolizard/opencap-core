@@ -5,6 +5,9 @@ import time
 import json
 import os
 import shutil
+
+import yaml
+
 from utilsServer import processTrial, runTestSession
 import traceback
 import logging
@@ -41,6 +44,7 @@ from utils import sendStatusEmail
 from utils import importMetadata
 from utils import checkAndGetPosePickles
 from utils import getTrialNameIdMapping
+from utils import getMetadataFromServer
 from utilsAuth import getToken
 from utilsAPI import getAPIURL
 
@@ -73,8 +77,6 @@ def convertVideosToOpencap(session_path, session_id, trial_id, isDocker=False,
             }
         }
         trial.append(video)
-
-
 
     print("\nProcessing {}".format(trial_name))
 
