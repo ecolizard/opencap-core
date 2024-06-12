@@ -69,10 +69,12 @@ def convertVideosToOpencap(session_path, session_id, trial_id, isDocker=False,
             "video": video_path,
             "device_id": video_name,
             "parameters": {
-                "model": "FLIR Blackfly S USB3"
+                "model": "FLIR Blackfly S"
             }
         }
         trial.append(video)
+
+
 
     print("\nProcessing {}".format(trial_name))
 
@@ -124,6 +126,28 @@ def convertVideosToOpencap(session_path, session_id, trial_id, isDocker=False,
 
     return trial_name
 
+''' Default session meta data:
+calibrationSettings:
+  overwriteDeployedIntrinsics: false
+  saveSessionIntrinsics: false
+checkerBoard:
+  black2BlackCornersHeight_n: 8
+  black2BlackCornersWidth_n: 11
+  placement: ground
+  squareSideLength_mm: 60
+gender_mf: m
+height_m: 1.89
+iphoneModel:
+  Cam0: iphone13,3
+  Cam1: iphone13,3
+  Cam2: iphone13,3
+  Cam3: iphone13,3
+  Cam4: iphone13,3
+markerAugmentationSettings:
+  markerAugmenterModel: LSTM
+mass_kg: 83.2
+openSimModel: LaiUhlrich2022
+subjectID: defaultSubject'''
 
 # Note: This is modified from processTrial() in utilsServer.py and will need to be updated if the original is updated.
 def processLocalTrial(session_path, session_id, trial_id, trial_type='dynamic',
