@@ -1,3 +1,5 @@
+import sys
+
 import requests
 import time
 import json
@@ -44,9 +46,9 @@ from utilsAPI import getAPIURL
 
 
 def convertVideosToOpecap(session_id, trial_id, isDocker=True,
-                             isCalibration=False, isStaticPose=False,
-                             trial_name=None, session_name=None,
-                             session_path=None, benchmark=False):
+                          isCalibration=False, isStaticPose=False,
+                          trial_name=None, session_name=None,
+                          session_path=None, benchmark=False):
     if session_name is None:
         session_name = session_id
     data_dir = getDataDirectory(isDocker)
@@ -110,14 +112,15 @@ def convertVideosToOpecap(session_id, trial_id, isDocker=True,
 
     return trial_name
 
+
 def processLocalTrial(session_path, session_id, trial_id, trial_type='dynamic',
-                 imageUpsampleFactor=4, poseDetector='OpenPose',
-                 isDocker=True, resolutionPoseDetection='default',
-                 bbox_thr=0.8, extrinsicTrialName='calibration',
-                 deleteLocalFolder=True,
-                 hasWritePermissions=True,
-                 use_existing_pose_pickle=False,
-                 batchProcess=False):
+                      imageUpsampleFactor=4, poseDetector='OpenPose',
+                      isDocker=True, resolutionPoseDetection='default',
+                      bbox_thr=0.8, extrinsicTrialName='calibration',
+                      deleteLocalFolder=True,
+                      hasWritePermissions=True,
+                      use_existing_pose_pickle=False,
+                      batchProcess=False):
     # Get session directory
     session_name = session_id
     metadata_path = os.path.join(session_path, 'sessionMetadata.yaml')
@@ -129,7 +132,7 @@ def processLocalTrial(session_path, session_id, trial_id, trial_type='dynamic',
 
         # download the videos
         trial_name = convertVideosToOpecap(session_id, trial_id, isDocker=isDocker,
-                                              isCalibration=True, isStaticPose=False)
+                                           isCalibration=True, isStaticPose=False)
 
         # run calibration
         try:
@@ -321,14 +324,7 @@ def processLocalTrial(session_path, session_id, trial_id, trial_type='dynamic',
         shutil.rmtree(session_path)
 
 
-
 logging.basicConfig(level=logging.INFO)
-
-# if true, will delete entire data directory when finished with a trial
-isDocker = False
-
-# get start time
-t = time.localtime()
 
 # get session path from script arguments
 if len(sys.argv) > 1:
@@ -342,10 +338,16 @@ if os.path.isdir(session_path):
 
     # dynamic, calibration, static
     trial_type = sys.argv[2]
+
+    # data/660d52880f89d3034501daf9/RecoveryInsights/patient_660d568bf69e2efee9ccc7f2/session_663a3091d4910ce33898342c/calibration
     session_id = os.path.basename(session_path)
+    session_id = session_id.split('_')[1]
+
+    patient_id = os.path.basename(os.path.dirname(session_path))
+    patient_id = patient_id.split('_')[1]
 
     try:
-        processLocalTrial(session_path, session_id, trial["id"], trial_type=trial_type, isDocker=isDocker)
+        processLocalTrial(session_path, session_id, patient_id, trial_type=trial_type, isDocker=False)
 
     except Exception as e:
         traceback.print_exc()
@@ -353,11 +355,4 @@ if os.path.isdir(session_path):
         if len(args_as_strings) > 1 and 'pose detection timed out' in args_as_strings[1].lower():
             logging.info("Opencap failed.")
             message = "A backend OpenCap machine timed out during pose detection. It has been stopped."
-            raise Exception('Worker failed. Stopped.')
-
-    # Clean data directory
-    if isDocker:
-        folders = glob.glob(os.path.join(getDataDirectory(isDocker=True), 'Data', '*'))
-        for f in folders:
-            shutil.rmtree(f)
-            logging.info('deleting ' + f)
+            raise Exception('processLocalTrial() failed.')
