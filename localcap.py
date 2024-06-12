@@ -44,8 +44,8 @@ from utils import getTrialNameIdMapping
 from utilsAuth import getToken
 from utilsAPI import getAPIURL
 
-
-def convertVideosToOpecap(session_id, trial_id, isDocker=True,
+# Note: This is modified from downloadVideosFromServer() in utils.py and will need to be updated if the original is updated.
+def convertVideosToOpencap(session_id, trial_id, isDocker=True,
                           isCalibration=False, isStaticPose=False,
                           trial_name=None, session_name=None,
                           session_path=None, benchmark=False):
@@ -113,6 +113,7 @@ def convertVideosToOpecap(session_id, trial_id, isDocker=True,
     return trial_name
 
 
+# Note: This is modified from processTrial() in utilsServer.py and will need to be updated if the original is updated.
 def processLocalTrial(session_path, session_id, trial_id, trial_type='dynamic',
                       imageUpsampleFactor=4, poseDetector='OpenPose',
                       isDocker=True, resolutionPoseDetection='default',
@@ -131,7 +132,7 @@ def processLocalTrial(session_path, session_id, trial_id, trial_type='dynamic',
         deleteCalibrationFiles(session_path)
 
         # download the videos
-        trial_name = convertVideosToOpecap(session_id, trial_id, isDocker=isDocker,
+        trial_name = convertVideosToOpencap(session_id, trial_id, isDocker=isDocker,
                                            isCalibration=True, isStaticPose=False)
 
         # run calibration
@@ -162,7 +163,7 @@ def processLocalTrial(session_path, session_id, trial_id, trial_type='dynamic',
         calibrationOptions = getCalibration(session_id, session_path, trial_type=trial_type, getCalibrationOptions=True)
 
         # download the videos
-        trial_name = downloadVideosFromServer(session_id, trial_id, isDocker=isDocker,
+        trial_name = convertVideosToOpencap(session_id, trial_id, isDocker=isDocker,
                                               isCalibration=False, isStaticPose=True)
 
         # Download the pose pickles to avoid re-running pose estimation.
@@ -325,6 +326,18 @@ def processLocalTrial(session_path, session_id, trial_id, trial_type='dynamic',
 
 
 logging.basicConfig(level=logging.INFO)
+
+
+####################################################################################################
+# Local OpenCap processing
+####################################################################################################
+# This script processes a session on the local machine.
+#
+# Usage:
+# python3 localcap.py /path/to/session/calibration calibration
+# python3 localcap.py /path/to/session static
+# python3 localcap.py /path/to/session dynamic
+####################################################################################################
 
 # get session path from script arguments
 if len(sys.argv) > 1:
