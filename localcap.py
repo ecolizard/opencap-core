@@ -32,7 +32,7 @@ from utils import downloadVideosFromServer
 from utils import switchCalibrationForCamera
 from utils import deleteCalibrationFiles
 from utils import deleteStaticFiles
-from utils import writeMediaToAPI
+#from utils import writeMediaToAPI
 from utils import postCalibrationOptions
 from utils import getCalibration
 from utils import getModelAndMetadata
@@ -47,6 +47,8 @@ from utils import getTrialNameIdMapping
 from utils import getMetadataFromServer
 from utilsAuth import getToken
 from utilsAPI import getAPIURL
+
+from utilsServer import getResultsPath
 
 import pickle
 
@@ -151,6 +153,46 @@ mass_kg: 83.2
 openSimModel: LaiUhlrich2022
 subjectID: defaultSubject'''
 
+
+def writeMediaToAPI(media_path, trial_id, tag=None, deleteOldMedia=False):
+    # @todo
+    #     data = {
+    #         "trial": trial_id,
+    #         "tag": tag,
+    #         "device_id" : device_id,
+    #         "media_url" : r['fields']['key']
+    #     }
+
+    '''
+    if deleteOldMedia:
+        deleteResult(trial_id, tag=tag)
+
+    for filename in os.listdir(media_path):
+        thisMimeType = mimetypes.guess_type(filename)
+        if thisMimeType[0] is not None and not os.path.isdir(filename):
+            print(filename)
+            fileType = thisMimeType[0][0:thisMimeType[0].find('/')]
+            if fileType == 'image' or fileType == 'video' or fileType == 'application':
+                fullpath = "{}/{}".format(media_path, filename)
+
+                if fileType == 'image' and tag == "calibration-img":
+                    cam = filename[filename.find('Cam'):filename.find('.')]
+                    if "altSoln" in filename:
+                        altSoln = '_altSoln'
+                    else:
+                        altSoln = ''
+                    device_id = cam + altSoln
+
+                else:
+                    device_id = None
+
+                postFileToTrial(fullpath, trial_id, tag, device_id)
+    '''
+    return
+
+
+
+
 # Note: This is modified from processTrial() in utilsServer.py and will need to be updated if the original is updated.
 def processLocalTrial(session_path, session_id, trial_id, trial_type='dynamic',
                       imageUpsampleFactor=4, poseDetector='OpenPose',
@@ -186,7 +228,7 @@ def processLocalTrial(session_path, session_id, trial_id, trial_type='dynamic',
         images_path = os.path.join(session_path, 'CalibrationImages')
 
         # write locally to session path
-        writeMediaToAPI(API_URL, images_path, trial_id, tag="calibration-img", deleteOldMedia=True)
+        writeMediaToAPI(images_path, trial_id, tag="calibration-img", deleteOldMedia=True)
 
         # Write calibration solutions to django
         writeCalibrationOptionsToAPI(session_path, session_id, calibration_id=trial_id,
@@ -256,17 +298,17 @@ def processLocalTrial(session_path, session_id, trial_id, trial_type='dynamic',
         # Write videos to django
         video_path = getResultsPath(session_id, trial_id,
                                     resultType='neutralVideo', isDocker=isDocker)
-        writeMediaToAPI(API_URL, video_path, trial_id, tag='video-sync', deleteOldMedia=True)
+        writeMediaToAPI(video_path, trial_id, tag='video-sync', deleteOldMedia=True)
 
         # Write neutral pose images to django
         images_path = os.path.join(session_path, 'NeutralPoseImages')
-        writeMediaToAPI(API_URL, images_path, trial_id, tag="neutral-img", deleteOldMedia=True)
+        writeMediaToAPI(images_path, trial_id, tag="neutral-img", deleteOldMedia=True)
 
         # Write visualizer jsons to django
         visualizerJson_path = getResultsPath(session_id, trial_id,
                                              resultType='visualizerJson',
                                              isDocker=isDocker)
-        writeMediaToAPI(API_URL, visualizerJson_path, trial_id,
+        writeMediaToAPI(visualizerJson_path, trial_id,
                         tag="visualizerTransforms-json", deleteOldMedia=True)
 
         # Write results to django
@@ -339,13 +381,14 @@ def processLocalTrial(session_path, session_id, trial_id, trial_type='dynamic',
         # Write videos to django
         video_path = getResultsPath(session_id, trial_id,
                                     resultType='sync_video', isDocker=isDocker)
-        writeMediaToAPI(API_URL, video_path, trial_id, tag='video-sync', deleteOldMedia=True)
+        writeMediaToAPI(video_path, trial_id, tag='video-sync', deleteOldMedia=True)
+
 
         # Write visualizer jsons to django
         visualizerJson_path = getResultsPath(session_id, trial_id,
                                              resultType='visualizerJson',
                                              isDocker=isDocker)
-        writeMediaToAPI(API_URL, visualizerJson_path, trial_id,
+        writeMediaToAPI(visualizerJson_path, trial_id,
                         tag="visualizerTransforms-json", deleteOldMedia=True)
 
         # Write results to django
