@@ -26,12 +26,12 @@ from utils import sendStatusEmail
 from utils import importMetadata
 from utils import checkAndGetPosePickles
 from utils import getTrialNameIdMapping
-from utilsAuth import getToken
-from utilsAPI import getAPIURL
+#from utilsAuth import getToken
+#from utilsAPI import getAPIURL
 
 
-API_URL = getAPIURL()
-API_TOKEN = getToken()
+#API_URL = getAPIURL()
+#API_TOKEN = getToken()
 
 def processTrial(session_id, trial_id, trial_type = 'dynamic',
                  imageUpsampleFactor = 4, poseDetector = 'OpenPose',

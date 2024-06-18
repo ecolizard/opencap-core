@@ -88,6 +88,7 @@ def main(sessionName, trialName, trial_id, camerasToUse=['all'],
         sessionDir = os.path.join(dataDir, 'Data', sessionName)
     sessionMetadata = importMetadata(os.path.join(sessionDir,
                                                   'sessionMetadata.yaml'))
+    #LW - Change session Metadata file to alter key variables
     
     # If augmenter model defined through web app.
     # If overwriteAugmenterModel is True, the augmenter model is the one
@@ -203,15 +204,12 @@ def main(sessionName, trialName, trial_id, camerasToUse=['all'],
                     camName))
                 # Intrinsics ##################################################
                 # Intrinsics directories.
-                intrinsicDir = os.path.join(baseDir, 'CameraIntrinsics',
-                                            cameraModels[camName])
-                permIntrinsicDir = os.path.join(intrinsicDir, 
-                                                intrinsicsFinalFolder)            
+                intrinsicDir = os.path.join(camDir,"cameraIntrinsics.pickle") #Look for intrinsic in the same location as IntrinsicExtrinsic
+                #permIntrinsicDir = os.path.join(intrinsicDir, 
+                #                                intrinsicsFinalFolder)            
                 # Intrinsics exist.
-                if os.path.exists(permIntrinsicDir):
-                    CamParams = loadCameraParameters(
-                        os.path.join(permIntrinsicDir,
-                                      'cameraIntrinsics.pickle'))                    
+                if os.path.exists(intrinsicDir):
+                    CamParams = loadCameraParameters(intrinsicDir)                 
                 # Intrinsics do not exist throw an error. Eventually the
                 # webapp will give you the opportunity to compute them.
                 
@@ -233,7 +231,7 @@ def main(sessionName, trialName, trial_id, camerasToUse=['all'],
                                              trial_id + extension) 
                                               
                 # Modify intrinsics if camera view is rotated
-                CamParams = rotateIntrinsics(CamParams,extrinsicPath)
+                CamParams = rotateIntrinsics(CamParams,extrinsicPath) #May need to ignore this
                 
                 # for 720p, imageUpsampleFactor=4 is best for small board
                 try:

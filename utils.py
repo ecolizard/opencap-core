@@ -17,11 +17,11 @@ import numpy as np
 import pandas as pd
 from scipy import signal
 
-from utilsAuth import getToken
-from utilsAPI import getAPIURL
+#from utilsAuth import getToken
+#from utilsAPI import getAPIURL
 
-API_URL = getAPIURL()
-API_TOKEN = getToken()
+#API_URL = getAPIURL()
+#API_TOKEN = getToken()
 
 #%% Rest of utils
 

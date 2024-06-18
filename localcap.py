@@ -13,8 +13,8 @@ import traceback
 import logging
 import glob
 import numpy as np
-from utilsAPI import getAPIURL, getWorkerType
-from utilsAuth import getToken
+#from utilsAPI import getAPIURL, getWorkerType
+#from utilsAuth import getToken
 from utils import getDataDirectory, checkTime, checkResourceUsage, sendStatusEmail
 import os
 import glob
@@ -45,8 +45,8 @@ from utils import importMetadata
 from utils import checkAndGetPosePickles
 from utils import getTrialNameIdMapping
 from utils import getMetadataFromServer
-from utilsAuth import getToken
-from utilsAPI import getAPIURL
+#from utilsAuth import getToken
+#from utilsAPI import getAPIURL
 
 from utilsServer import getResultsPath
 
@@ -419,9 +419,23 @@ logging.basicConfig(level=logging.INFO)
 # python3 localcap.py /path/to/session dynamic
 ####################################################################################################
 
+''' TEMP INPUT TO GET SPYDER TO RUN'''
+
+#Spyder command line 
+#%run localcap.py C:\Users\lw2175\Dropbox\University\Bath\BioCV\Stroke\OpenCap\Data\Local_Development\OpencapSession\PatientID\P01\OpenCapData_82397d13-7022-4326-862f-925da10a90bc static
+
+
+#Used to run the code within IDE
+sys.argv = ['localcap.py', 'C:\\Users\\lw2175\\Dropbox\\University\\Bath\\BioCV\\Stroke\\OpenCap\\Data\\Local_Development\\OpencapSession\\PatientID\\P01\\OpenCapData_82397d13-7022-4326-862f-925da10a90bc', 'calibration']
+
+'''  END '''
+
+
 # get session path from script arguments
 if len(sys.argv) > 1:
     session_path = sys.argv[1]
+    print(sys.argv)
+    
 
 # if session exists
 if os.path.isdir(session_path):
@@ -437,7 +451,7 @@ if os.path.isdir(session_path):
     session_id = session_id.split('_')[1]
 
     patient_id = os.path.basename(os.path.dirname(session_path))
-    patient_id = patient_id.split('_')[1]
+    #patient_id = patient_id.split('_')[1]
 
     try:
         processLocalTrial(session_path, session_id, patient_id, trial_type=trial_type, isDocker=False)
